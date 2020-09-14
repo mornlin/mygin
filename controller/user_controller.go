@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"mygin/common"
 	"mygin/dto"
@@ -21,6 +22,10 @@ func Register(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	telephone := ctx.PostForm("telephone")
 	password := ctx.PostForm("password")
+	fmt.Println(telephone)
+	var requestUser = model.User{}
+	ctx.Bind(&requestUser)
+	fmt.Println(requestUser)
 
 	if len(telephone) != 11 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "手机号码必须11位")
@@ -55,7 +60,14 @@ func Register(ctx *gin.Context) {
 		Password:  string(hashedPassword),
 	}
 	db.Create(&newUser)
-	response.Success(ctx, nil, "注册成功")
+
+	token, err := common.ReleaseToken(newUser)
+	if err != nil {
+		response.Response(ctx, http.StatusUnprocessableEntity, 500, nil, "系统异常")
+		return
+	}
+
+	response.Success(ctx, gin.H{"token": token}, "注册成功")
 }
 
 func Login(ctx *gin.Context) {
