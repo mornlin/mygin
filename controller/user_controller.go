@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"log"
 	"mygin/common"
 	"mygin/dto"
@@ -19,44 +18,40 @@ import (
 
 func Register(ctx *gin.Context) {
 	db := common.DB
-	name := ctx.PostForm("name")
-	telephone := ctx.PostForm("telephone")
-	password := ctx.PostForm("password")
-	fmt.Println(telephone)
 	var requestUser = model.User{}
 	ctx.Bind(&requestUser)
-	fmt.Println(requestUser)
+	log.Println("Name:" + requestUser.Name)
+	log.Println("Telephone:" + requestUser.Telephone)
+	log.Println("Password:" + requestUser.Password)
 
-	if len(telephone) != 11 {
+	if len(requestUser.Telephone) != 11 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "手机号码必须11位")
 		return
 	}
 
-	if len(password) < 6 {
+	if len(requestUser.Password) < 6 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "密码不能少于6位")
 		return
 	}
 
-	if len(name) == 0 {
-		name = util.RandomString(10)
+	if len(requestUser.Name) == 0 {
+		requestUser.Name = util.RandomString(10)
 	}
 
-	log.Println(name, telephone, password)
-
-	if isTelephoneExist(db, telephone) {
+	if isTelephoneExist(db, requestUser.Telephone) {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "用户已存在")
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestUser.Password), bcrypt.DefaultCost)
 	if err != nil {
 		response.Response(ctx, http.StatusUnprocessableEntity, 500, nil, "加密错误")
 		return
 	}
 
 	newUser := model.User{
-		Name:      name,
-		Telephone: telephone,
+		Name:      requestUser.Name,
+		Telephone: requestUser.Telephone,
 		Password:  string(hashedPassword),
 	}
 	db.Create(&newUser)
@@ -71,28 +66,30 @@ func Register(ctx *gin.Context) {
 }
 
 func Login(ctx *gin.Context) {
-	telephone := ctx.PostForm("telephone")
-	password := ctx.PostForm("password")
+	var requestUser = model.User{}
+	ctx.Bind(&requestUser)
+	log.Println("Telephone:" + requestUser.Telephone)
+	log.Println("Password:" + requestUser.Password)
 
-	if len(telephone) != 11 {
+	if len(requestUser.Telephone) != 11 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "手机号码必须11位")
 		return
 	}
 
-	if len(password) < 6 {
+	if len(requestUser.Password) < 6 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 422, nil, "密码不能少于6位")
 		return
 	}
 
 	db := common.GetDB()
 	var user model.User
-	db.Where("telephone = ?", telephone).First(&user)
+	db.Where("telephone = ?", requestUser.Telephone).First(&user)
 	if user.ID == 0 {
 		response.Response(ctx, http.StatusUnprocessableEntity, 400, nil, "用户不存在")
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(requestUser.Password)); err != nil {
 		response.Response(ctx, http.StatusUnprocessableEntity, 400, nil, "密码错误")
 		return
 	}
